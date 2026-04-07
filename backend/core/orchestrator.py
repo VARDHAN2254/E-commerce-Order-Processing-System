@@ -26,8 +26,9 @@ class PipelineOrchestrator:
         self.logger.log_transition(msg)
         print(f"[{msg.timestamp.isoformat()}] [{state.name}] {agent_name}: {json.dumps(payload_data)[:150]}...")
 
-    def run_pipeline(self, order_id: str, seed: int = 42):
-        run_id = str(uuid.uuid4())
+    def run_pipeline(self, order_id: str, seed: int = 42, run_id: str = None):
+        if run_id is None:
+            run_id = str(uuid.uuid4())
         print(f"\n--- Starting Order Run {run_id} for Order {order_id} (Seed: {seed}) ---")
         
         self._log_state(run_id, "System", AgentState.IDLE, order_id, {"status": "initialized", "seed": seed})

@@ -23,12 +23,13 @@ class RunRequest(BaseModel):
     order_id: str
     seed: int = 42
 
+import uuid
+
 @app.post("/api/run")
 async def trigger_run(request: RunRequest, background_tasks: BackgroundTasks):
-    # In a full app, this would use websockets for live updates
-    # For now, it immediately starts the run process on the backend
-    background_tasks.add_task(orchestrator.run_pipeline, request.order_id, request.seed)
-    return {"status": "started", "order_id": request.order_id, "seed": request.seed}
+    run_id = str(uuid.uuid4())
+    background_tasks.add_task(orchestrator.run_pipeline, request.order_id, request.seed, run_id)
+    return {"status": "started", "order_id": request.order_id, "seed": request.seed, "run_id": run_id}
 
 @app.get("/api/logs/{run_id}")
 async def get_logs(run_id: str):
