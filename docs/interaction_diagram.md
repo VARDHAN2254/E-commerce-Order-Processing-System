@@ -1,47 +1,58 @@
-# Multi-Agent E-Commerce Interaction Diagram
+# NovaKart Architecture Interaction Diagram
 
 ```mermaid
 sequenceDiagram
-    participant UI as User / React
+    participant UI as React Dashboard
+    participant API as FastAPI
     participant Orch as PipelineOrchestrator
-    participant OrderA as Order Agent
-    participant InvA as Inventory Agent
-    participant PayA as Payment Agent
-    participant DelA as Delivery Agent
+    participant OrderA as OrderAgent
+    participant InvA as InventoryAgent
+    participant PayA as PaymentAgent
+    participant DelA as DeliveryAgent
+    participant DB as SQLite RunLogger
 
-    UI->>Orch: Start Run(Order ID, Seed)
-    
+    UI->>API: POST /api/run {order_id, seed}
+    API->>Orch: run_pipeline(order_id, seed, run_id)
+
+    Orch->>DB: Log IDLE {status, seed}
+
     rect rgb(230, 245, 240)
-    Note over Orch: State: ORDER_PLACED
+    Note over Orch: ORDER_PLACED
     Orch->>OrderA: process(order_id, seed)
-    OrderA-->>Orch: OrderData Object
+    OrderA-->>Orch: OrderData {customer, item, amount}
+    Orch->>DB: Log ORDER_PLACED payload
     end
 
-    rect rgb(240, 230, 250)
-    Note over Orch: State: VERIFIED
-    Orch->>InvA: process(OrderData, seed)
-    InvA-->>Orch: Updated stock_confidence & status
+    rect rgb(255, 239, 222)
+    Note over Orch: VERIFIED
+    Orch->>InvA: process(order, seed)
+    InvA-->>Orch: stock_status, confidence, selected_sku, inventory_catalog[]
+    Orch->>DB: Log VERIFIED payload
+    Orch-->>UI: GET /api/logs returns inventory payload
+    UI->>UI: Open inventory sheet with product images and stock badges
     end
 
-    loop Max 2 Retries until Pass
-        rect rgb(255, 240, 220)
-        Note over Orch: State: PACKED
-        Orch->>PayA: process(OrderData, attempt)
-        PayA-->>Orch: verified payment_status & fraud_risk
+    loop Max 2 retries
+        rect rgb(255, 244, 226)
+        Note over Orch: PACKED
+        Orch->>PayA: process(order, seed, attempt)
+        PayA-->>Orch: payment_status, fraud_risk
+        Orch->>DB: Log PACKED payload
         end
 
-        rect rgb(255, 230, 230)
-        Note over Orch: State: SHIPPED
-        Orch->>DelA: process(OrderData, attempt)
-        DelA-->>Orch: Pass/Fail + [Shipping Partner]
+        rect rgb(236, 255, 245)
+        Note over Orch: SHIPPED
+        Orch->>DelA: process(order, seed, attempt)
+        DelA-->>Orch: pass_eval, delivery_days, shipping_partner
+        Orch->>DB: Log SHIPPED payload
         end
     end
 
-    alt Passed Delivery Evaluation
-        Note over Orch: State: DELIVERED
-        Orch-->>UI: Run Success (Metrics Dashboard Updated)
-    else Max Retries Exceeded
-        Note over Orch: State: FAILED
-        Orch-->>UI: Run Failed Alert
+    alt Passed evaluation
+        Orch->>DB: Log DELIVERED {execution_time_ms}
+        Orch-->>UI: Success state + metrics updated
+    else Retries exhausted
+        Orch->>DB: Log FAILED {reason}
+        Orch-->>UI: Failed state surfaced
     end
 ```

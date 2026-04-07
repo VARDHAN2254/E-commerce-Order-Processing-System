@@ -1,31 +1,92 @@
-# Multi-Agent E-Commerce Order Pipeline - Architecture Document
+# NovaKart Architecture Document
 
-## Overview
-This system is a deterministic, multi-agent automated orchestration designed to facilitate E-commerce order placement, inventory scoping, payment processing, and final delivery logistics. It cleanly separates role-behaviors across four individual agents communicating seamlessly with structured JSON payload mapping via a top-level Orchestrator.
+## 1. System Goal
 
-## Non-Negotiable Requirements Met
+NovaKart simulates a production-style e-commerce order lifecycle using deterministic multi-agent orchestration.
+The architecture enforces strict role boundaries, reproducible behavior via seed-driven logic, and traceable state transitions.
 
-### 1. Multi-Agent Architecture
-The system employs **four agents** cleanly separated by function:
-- **OrderAgent**: Bootstraps realistic mock customer parameters natively into OrderData mapping logic.
-- **InventoryAgent**: Synthesizes warehouse querying to provide strict stock level confidence scores and categorical updates.
-- **PaymentAgent**: Evaluates fraudulent indicators utilizing explicit randomized state seeds and outputs transaction validity.
-- **DeliveryAgent**: Implements strict gate-logic evaluating previous steps; assigns logical shipping couriers based on compliance logic.
+## 2. Runtime Components
 
-### 2. State Machine & Orchestrator
-To strictly prevent single "god-agent" behaviors, control is manually routed sequentially via the `PipelineOrchestrator` acting on explicit enum configurations:
-- States: `IDLE`, `ORDER_PLACED`, `VERIFIED`, `PACKED`, `SHIPPED`, `DELIVERED`, `FAILED`
-- **JSON Protocol**: The `MessageProtocol` rigidly structures messaging passing: `{run_id, agent, state, order_id, payload, timestamp}`.
+- `React Dashboard` (`demo-app`)
+  - Live Tracking view (agent handoffs and stage timeline)
+  - System Console view (raw protocol logs + quantitative metrics)
+  - Inventory Sheet (catalog cards with images and stock signals)
+- `FastAPI Service` (`run.py`)
+  - `POST /api/run` to trigger asynchronous pipeline execution
+  - `GET /api/logs/{run_id}` to fetch transition history
+- `PipelineOrchestrator`
+  - Controls state-machine sequence and retry logic
+  - Emits protocol messages to logger on every transition
+- `SQLite RunLogger`
+  - Persists transition history in `runs.db`
 
-### 3. Observability & Logging
-All transitions are rigorously recorded in local `RunLogger` (SQlite backed via `runs.db`). Each run generates a unique UUID, tracks timestamps accurately to the millisecond, and exposes endpoints to replay history allowing full observability.
+## 3. Agent Responsibilities
 
-### 4. Compulsory UI Features
-The frontend is built natively with React and features rich Glassmorphism aesthetics:
-- **Agent Panel**: Real-time visual tracking of active node (e.g. Inventory Agent or Payment Agent).
-- **State Panel**: Trace log of E-commerce states (`ORDER_PLACED -> DELIVERED`).
-- **Interaction Log**: Raw JSON visualizer inspecting live system message payloads.
-- **Metrics Dashboard**: Quantitatively monitors Fraud Risk, Stock Confidence, Delivery constraints, and Run-time evaluation speeds.
+- `OrderAgent`
+  - Generates base `OrderData` (customer, item, quantity, amount)
+  - Establishes `ORDER_PLACED` stage payload
+- `InventoryAgent`
+  - Computes stock confidence and stock status
+  - Builds inventory catalog payload with image metadata
+  - Sets `selected_sku` for currently ordered product
+- `PaymentAgent`
+  - Calculates fraud risk and transaction status
+  - Supports retry-aware verification behavior
+- `DeliveryAgent`
+  - Applies pass/fail criteria
+  - Assigns shipping partner and delivery estimate
 
-### 5. Deployment Constraints
-Executes exclusively utilizing PRNG simulated determinism ensuring results are 100% reproducible without risking live infrastructure costs or relying on single monolithic LLM executions simulating business steps. 10 strict mocked catalog records ensure rigorous scalability constraints.
+## 4. State Machine
+
+`IDLE -> ORDER_PLACED -> VERIFIED -> PACKED -> SHIPPED -> DELIVERED | FAILED`
+
+Transition control is centralized in `PipelineOrchestrator`; no single agent bypasses state ordering.
+
+## 5. Data Contracts
+
+### 5.1 MessageProtocol (logged event)
+
+```json
+{
+  "run_id": "uuid",
+  "agent": "InventoryAgent",
+  "state": "VERIFIED",
+  "order_id": "1",
+  "payload": {},
+  "timestamp": "UTC datetime"
+}
+```
+
+### 5.2 InventoryAgent payload additions
+
+`VERIFIED` payload now includes:
+- `stock_status`
+- `confidence`
+- `selected_sku`
+- `inventory_catalog[]`
+
+Each `inventory_catalog` item includes:
+- `sku`
+- `name`
+- `category`
+- `image`
+- `price`
+- `stock_units`
+- `stock_status`
+
+## 6. Failure Handling and Retry
+
+- `PaymentAgent` + `DeliveryAgent` run in a bounded retry loop (`max_retries=2`).
+- If pass conditions are not met, the orchestrator retries until success or exhaustion.
+- Final system states:
+  - `DELIVERED` with execution metrics
+  - `FAILED` with terminal reason
+
+## 7. UI/UX Architecture Notes
+
+- Dashboard branding: `NovaKart`
+- Cinematic transition system:
+  - Agent-to-agent handoff animations
+  - System Console entry transitions
+  - Inventory sheet open transition inspired by mobile app motion
+- Inventory sheet is data-driven by `InventoryAgent` payload, not static-only UI data.
