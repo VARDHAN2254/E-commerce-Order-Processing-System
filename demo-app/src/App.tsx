@@ -211,86 +211,86 @@ function App() {
       {view === 'tracking' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {/* Order Agent */}
-          <div className="panel" style={{ borderLeft: activeAgent === 'OrderAgent' ? '4px solid var(--color-fetch)' : '1px solid rgba(255,255,255,0.05)' }}>
+          <div className={`panel ${activeAgent === 'OrderAgent' ? 'active-fetch' : ''} ${currentState !== 'IDLE' ? 'agent-node-border' : ''}`} style={{ opacity: currentState === 'IDLE' && activeAgent !== 'OrderAgent' ? 0.8 : 1 }}>
             <div className="panel-title" style={{ color: 'var(--color-fetch)' }}><Network size={18} /> 1. Order Agent</div>
             <div style={{ display: 'flex', gap: '2rem', marginTop: '1rem' }}>
               <div style={{ flex: 1 }}>
                 <p className="text-slate-400 text-sm mb-2">Role: Receives user order details & generates Order ID.</p>
-                <div style={{ padding: '1rem', background: 'rgba(0,0,0,0.2)', borderRadius: '8px' }}>
+                <div style={{ padding: '1.25rem', background: 'rgba(0,0,0,0.4)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.03)' }}>
                   {orderData ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="text-slate-400">Order ID:</span> <strong>ORD-{logs[0]?.order_id || orderId}</strong></div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="text-slate-400">Customer:</span> <strong>{orderData.customer_name || orderData.customer}</strong></div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="text-slate-400">Product:</span> <strong style={{ color: 'var(--color-fetch-light)' }}>{orderData.item_name || orderData.item}</strong></div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="text-slate-400">Product:</span> <strong style={{ color: 'var(--color-fetch)' }}>{orderData.item_name || orderData.item}</strong></div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="text-slate-400">Total:</span> <strong>${orderData.total_amount || orderData.amount}</strong></div>
                     </div>
-                  ) : <div className="text-slate-500 text-center">Awaiting order...</div>}
+                  ) : <div className="text-slate-500 text-center py-4">Awaiting order...</div>}
                 </div>
               </div>
             </div>
           </div>
 
           {/* Inventory Agent */}
-          <div className="panel" style={{ borderLeft: activeAgent === 'InventoryAgent' ? '4px solid var(--color-analyze)' : '1px solid rgba(255,255,255,0.05)', opacity: currentState === 'IDLE' ? 0.5 : 1 }}>
+          <div className={`panel ${activeAgent === 'InventoryAgent' ? 'active-analyze' : ''} ${currentState !== 'IDLE' ? 'agent-node-border' : ''}`} style={{ opacity: currentState === 'IDLE' ? 0.3 : 1 }}>
             <div className="panel-title" style={{ color: 'var(--color-analyze)' }}><Package size={18} /> 2. Inventory Agent</div>
             <div style={{ display: 'flex', gap: '2rem', marginTop: '1rem' }}>
               <div style={{ flex: 1 }}>
                 <p className="text-slate-400 text-sm mb-2">Role: Checks product availability & updates stock database.</p>
-                <div style={{ padding: '1rem', background: 'rgba(0,0,0,0.2)', borderRadius: '8px' }}>
+                <div style={{ padding: '1.25rem', background: 'rgba(0,0,0,0.4)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.03)' }}>
                   {inventoryData ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="text-slate-400">Status:</span> 
                         <strong style={{ color: inventoryData.stock_status === 'Low Stock' ? 'var(--color-danger-light)' : 'var(--color-success-light)'}}>
                           {inventoryData.stock_status}
                         </strong>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="text-slate-400">Confidence Match:</span> <strong>{Math.round((inventoryData.stock_confidence || inventoryData.confidence) * 100)}%</strong></div>
-                      <div className="mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+                      <div className="mt-3 text-xs font-semibold px-3 py-2 rounded" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-main)' }}>
                         {inventoryData.stock_status === 'Low Stock' ? "Decision: Out of Stock → Cancel Order" : "Decision: In Stock → Continue"}
                       </div>
                     </div>
-                  ) : <div className="text-slate-500 text-center">Awaiting inventory check...</div>}
+                  ) : <div className="text-slate-500 text-center py-4">Awaiting inventory check...</div>}
                 </div>
               </div>
             </div>
           </div>
 
           {/* Payment Agent */}
-          <div className="panel" style={{ borderLeft: activeAgent === 'PaymentAgent' ? '4px solid var(--color-summarize)' : '1px solid rgba(255,255,255,0.05)', opacity: currentState === 'IDLE' || currentState === 'ORDER_PLACED' ? 0.5 : 1 }}>
+          <div className={`panel ${activeAgent === 'PaymentAgent' ? 'active-summarize' : ''} ${currentState !== 'IDLE' ? 'agent-node-border' : ''}`} style={{ opacity: currentState === 'IDLE' || currentState === 'ORDER_PLACED' ? 0.3 : 1 }}>
             <div className="panel-title" style={{ color: 'var(--color-summarize)' }}><CreditCard size={18} /> 3. Payment Agent</div>
             <div style={{ display: 'flex', gap: '2rem', marginTop: '1rem' }}>
               <div style={{ flex: 1 }}>
                 <p className="text-slate-400 text-sm mb-2">Role: Verifies payment & ensures fraud/security checks.</p>
-                <div style={{ padding: '1rem', background: 'rgba(0,0,0,0.2)', borderRadius: '8px' }}>
+                <div style={{ padding: '1.25rem', background: 'rgba(0,0,0,0.4)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.03)' }}>
                   {paymentData ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="text-slate-400">Transaction:</span> 
-                        <strong style={{ color: paymentData.payment_status === 'Authorized' ? 'var(--color-success-light)' : 'var(--color-summarize-light)'}}>
+                        <strong style={{ color: paymentData.payment_status === 'Authorized' ? 'var(--color-success-light)' : 'var(--color-summarize)'}}>
                           {paymentData.payment_status}
                         </strong>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="text-slate-400">Fraud Risk:</span> <strong>{Math.round((paymentData.fraud_risk) * 100)}%</strong></div>
                       {(paymentData.attempt || 1) > 1 && (
-                        <div className="mt-2 text-xs" style={{ color: 'var(--color-summarize-light)' }}>
+                        <div className="mt-3 text-xs font-semibold px-3 py-2 rounded" style={{ background: 'rgba(244, 114, 182, 0.1)', color: 'var(--color-summarize)' }}>
                           ⚠️ Fraud risk detected. Executing payment retry attempt {paymentData.attempt}...
                         </div>
                       )}
                     </div>
-                  ) : <div className="text-slate-500 text-center">Awaiting payment verification...</div>}
+                  ) : <div className="text-slate-500 text-center py-4">Awaiting payment verification...</div>}
                 </div>
               </div>
             </div>
           </div>
 
           {/* Delivery Agent */}
-          <div className="panel" style={{ borderLeft: activeAgent === 'DeliveryAgent' || currentState === 'DELIVERED' ? '4px solid var(--color-evaluate)' : '1px solid rgba(255,255,255,0.05)', opacity: currentState === 'IDLE' || currentState === 'ORDER_PLACED' || currentState === 'VERIFIED' ? 0.5 : 1 }}>
+          <div className={`panel ${activeAgent === 'DeliveryAgent' || currentState === 'DELIVERED' ? 'active-evaluate' : ''} ${currentState !== 'IDLE' ? 'agent-node-border' : ''}`} style={{ opacity: currentState === 'IDLE' || currentState === 'ORDER_PLACED' || currentState === 'VERIFIED' ? 0.3 : 1 }}>
             <div className="panel-title" style={{ color: 'var(--color-evaluate)' }}><Truck size={18} /> 4. Delivery Agent</div>
             <div style={{ display: 'flex', gap: '2rem', marginTop: '1rem' }}>
               <div style={{ flex: 1 }}>
                 <p className="text-slate-400 text-sm mb-2">Role: Assigns courier partner & updates delivery status.</p>
-                <div style={{ padding: '1rem', background: 'rgba(0,0,0,0.2)', borderRadius: '8px' }}>
+                <div style={{ padding: '1.25rem', background: 'rgba(0,0,0,0.4)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.03)' }}>
                   {deliveryData ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="text-slate-400">Courier Partner:</span> <strong>{deliveryData.shipping_partner && deliveryData.shipping_partner !== 'None' ? deliveryData.shipping_partner : (deliveryData.partner || 'Unassigned')}</strong></div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="text-slate-400">Est. Delivery Time:</span> <strong>{deliveryData.delivery_time_estimate || deliveryData.delivery_days} days</strong></div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="text-slate-400">Tracking Status:</span> 
@@ -299,7 +299,7 @@ function App() {
                          </strong>
                       </div>
                     </div>
-                  ) : <div className="text-slate-500 text-center">Awaiting delivery assignment...</div>}
+                  ) : <div className="text-slate-500 text-center py-4">Awaiting delivery assignment...</div>}
                 </div>
               </div>
             </div>
