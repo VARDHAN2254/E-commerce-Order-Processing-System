@@ -573,6 +573,8 @@ function App() {
   const [view, setView] = useState<ViewMode>('tracking');
   const [inventoryOpen, setInventoryOpen] = useState(false);
   const [inventoryCategory, setInventoryCategory] = useState<string>('All');
+  const [bookedItem, setBookedItem] = useState<InventoryCatalogItem | null>(null);
+  const [bookingTransitionActive, setBookingTransitionActive] = useState(false);
   const [handoff, setHandoff] = useState<HandoffTransition | null>(null);
   const [isSystemEntering, setIsSystemEntering] = useState(false);
 
@@ -581,6 +583,7 @@ function App() {
   const logContainerRef = useRef<HTMLDivElement>(null);
   const previousActiveStageRef = useRef(-1);
   const previousViewRef = useRef<ViewMode>('tracking');
+  const bookingTransitionTimerRef = useRef<number | null>(null);
 
   const stopRun = () => {
     if (pollInterval.current) {
@@ -600,6 +603,30 @@ function App() {
     setHandoff(null);
   };
 
+  const triggerBookingTransition = () => {
+    setBookingTransitionActive(true);
+    if (bookingTransitionTimerRef.current !== null) {
+      window.clearTimeout(bookingTransitionTimerRef.current);
+    }
+    bookingTransitionTimerRef.current = window.setTimeout(() => {
+      setBookingTransitionActive(false);
+    }, 1300);
+  };
+
+  const handleBookItem = (item: InventoryCatalogItem) => {
+    setBookedItem(item);
+    const featuredMatch = FEATURED_PRODUCTS.find(
+      (product) => product.name.toLowerCase() === item.name.toLowerCase(),
+    );
+    if (featuredMatch) {
+      setOrderId(featuredMatch.id);
+    }
+    triggerBookingTransition();
+    window.setTimeout(() => {
+      setInventoryOpen(false);
+    }, 320);
+  };
+
   const triggerSimulatedRun = () => {
     let step = 0;
     setLogs([]);
@@ -616,18 +643,29 @@ function App() {
       '9': 'Aero Street 101',
       '10': 'ZenWear Sport 102',
     };
-    const mockItemName = mockOrderLabels[orderId] ?? 'AstraBook Pro 100';
+    const mockItemName = bookedItem?.name ?? mockOrderLabels[orderId] ?? 'AstraBook Pro 100';
     const fallbackPack = generateFallbackInventory(seed, new Date());
     const fallbackCatalog = fallbackPack.catalog;
     const fallbackContext = fallbackPack.context;
-    const fallbackSelectedSku = fallbackCatalog[Math.max(0, Number(orderId || '1') - 1)]?.sku ?? 'NVK-LAP-0001';
+    const fallbackSelectedSku =
+      bookedItem?.sku ?? fallbackCatalog[Math.max(0, Number(orderId || '1') - 1)]?.sku ?? 'NVK-LAP-0001';
+    const mockAmount = Number(bookedItem?.discounted_price ?? bookedItem?.price ?? 1999.99);
 
     const mockFlow: Array<{ agent: string; state: AgentState; payload: Record<string, any> }> = [
       { agent: 'System', state: 'IDLE', payload: { status: 'initialized', seed } },
       {
         agent: 'OrderAgent',
         state: 'ORDER_PLACED',
-        payload: { customer: 'John Doe', item: mockItemName, amount: 1999.99 },
+        payload: {
+          customer: bookedItem ? 'Catalog Buyer' : 'John Doe',
+          item: mockItemName,
+          amount: mockAmount,
+          selected_sku: fallbackSelectedSku,
+          discount_percent: bookedItem?.discount_percent,
+          rating: bookedItem?.rating,
+          reviews: bookedItem?.reviews,
+          features: bookedItem?.features ?? [],
+        },
       },
       {
         agent: 'InventoryAgent',
@@ -676,7 +714,7 @@ function App() {
           run_id: 'demo',
           agent: currentItem.agent,
           state: currentItem.state,
-          order_id: orderId,
+          order_id: bookedItem ? `BOOK-${fallbackSelectedSku}` : orderId,
           payload: currentItem.payload,
           timestamp: new Date().toISOString(),
         },
@@ -690,10 +728,29 @@ function App() {
   const startRun = async () => {
     resetRun();
     try {
+      const requestBody: Record<string, unknown> = {
+        order_id: bookedItem ? `BOOK-${bookedItem.sku}` : orderId,
+        seed,
+      };
+      if (bookedItem) {
+        requestBody.booked_item = {
+          sku: bookedItem.sku,
+          name: bookedItem.name,
+          category: bookedItem.category,
+          price: Number(bookedItem.price ?? 0),
+          discounted_price: Number(bookedItem.discounted_price ?? bookedItem.price ?? 0),
+          discount_percent: Number(bookedItem.discount_percent ?? 0),
+          rating: Number(bookedItem.rating ?? 0),
+          reviews: Number(bookedItem.reviews ?? 0),
+          features: Array.isArray(bookedItem.features) ? bookedItem.features : [],
+          quantity: 1,
+        };
+      }
+
       const res = await fetch(`${API_BASE}/run`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order_id: orderId, seed }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!res.ok) {
@@ -886,13 +943,16 @@ function App() {
   }, [inventoryCatalog, inventoryData, fallbackInventoryPack]);
 
   const selectedInventorySku = useMemo(() => {
+    if (bookedItem?.sku) {
+      return bookedItem.sku;
+    }
     if (typeof inventoryData.selected_sku === 'string' && inventoryData.selected_sku.trim().length > 0) {
       return inventoryData.selected_sku;
     }
     const orderedItemName = String(orderData.item_name ?? orderData.item ?? '').toLowerCase();
     const matched = inventoryCatalog.find((item) => item.name.toLowerCase() === orderedItemName);
     return matched?.sku ?? '';
-  }, [inventoryCatalog, inventoryData, orderData]);
+  }, [bookedItem, inventoryCatalog, inventoryData, orderData]);
 
   const inventoryCategories = useMemo<[string, number][]>(() => {
     const grouped = Object.entries(
@@ -1018,6 +1078,15 @@ function App() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [inventoryOpen]);
 
+  useEffect(
+    () => () => {
+      if (bookingTransitionTimerRef.current !== null) {
+        window.clearTimeout(bookingTransitionTimerRef.current);
+      }
+    },
+    [],
+  );
+
   const currentBadgeLabel = currentState.replace('_', ' ');
   const activeAgentProfile = getAgentProfile(activeAgent);
 
@@ -1062,10 +1131,18 @@ function App() {
     },
   ];
 
+  const bookedDiscountPercent = Math.max(0, Number(bookedItem?.discount_percent ?? 0));
+  const bookedFeaturePreview = Array.isArray(bookedItem?.features) ? bookedItem!.features.slice(0, 3) : [];
+
   return (
-    <div className={`app-shell ${inventoryOpen ? 'inventory-focus' : ''}`}>
+    <div
+      className={`app-shell ${inventoryOpen ? 'inventory-focus' : ''} ${
+        bookingTransitionActive ? 'booking-transition-active' : ''
+      }`}
+    >
       <div className="ambient ambient-top" aria-hidden="true" />
       <div className="ambient ambient-bottom" aria-hidden="true" />
+      <div className={`booking-warp ${bookingTransitionActive ? 'is-active' : ''}`} aria-hidden="true" />
 
       <main className="dashboard">
         <header className={`surface topbar topbar-${runVisualState}`}>
@@ -1138,8 +1215,11 @@ function App() {
                 return (
                 <div
                   key={product.id}
-                  className={`product-card ${orderId === product.id ? 'is-selected' : ''}`}
-                  onClick={() => setOrderId(product.id)}
+                  className={`product-card ${orderId === product.id && bookedItem === null ? 'is-selected' : ''}`}
+                  onClick={() => {
+                    setOrderId(product.id);
+                    setBookedItem(null);
+                  }}
                 >
                   <div className="product-image-container">
                     <img src={thumbnail} loading="lazy" alt={product.name} />
@@ -1148,7 +1228,7 @@ function App() {
                     <h4>{product.name}</h4>
                     <span className="price-tag">${product.price.toFixed(2)}</span>
                   </div>
-                  {orderId === product.id && <div className="product-check"><CheckCircle2 size={16} /></div>}
+                  {orderId === product.id && bookedItem === null && <div className="product-check"><CheckCircle2 size={16} /></div>}
                 </div>
               )})}
             </div>
@@ -1164,6 +1244,56 @@ function App() {
                 onChange={(event) => setSeed(Number(event.target.value))}
               />
             </label>
+          </div>
+
+          <div className={`booked-item-panel ${bookedItem ? 'is-active' : ''} ${bookingTransitionActive ? 'is-booking' : ''}`}>
+            {bookedItem ? (
+              <>
+                <div className="booked-item-head">
+                  <p className="booked-item-kicker">Booked From Inventory</p>
+                  <button
+                    type="button"
+                    className="button button-ghost"
+                    onClick={() => setInventoryOpen(true)}
+                  >
+                    Change Item
+                  </button>
+                </div>
+                <div className="booked-item-grid">
+                  <div className="booked-item-main">
+                    <h4>{bookedItem.name}</h4>
+                    <p className="booked-item-meta">
+                      SKU {bookedItem.sku} • {bookedItem.category}
+                    </p>
+                    <div className="booked-item-features">
+                      {bookedFeaturePreview.map((feature) => (
+                        <span key={feature}>{feature}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="booked-item-stats">
+                    <p>
+                      <span>Rating</span>
+                      <strong>
+                        {bookedItem.rating?.toFixed(1) ?? '4.5'} ({bookedItem.reviews ?? 0})
+                      </strong>
+                    </p>
+                    <p>
+                      <span>Discount</span>
+                      <strong>{bookedDiscountPercent > 0 ? `${bookedDiscountPercent}% OFF` : 'No active discount'}</strong>
+                    </p>
+                    <p>
+                      <span>Checkout Price</span>
+                      <strong>{formatCurrency(bookedItem.discounted_price ?? bookedItem.price)}</strong>
+                    </p>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <p className="booked-item-empty">
+                Open <strong>Inventory Vault</strong> and click <strong>Book This Item</strong> to place orders from the live catalog.
+              </p>
+            )}
           </div>
 
           <div className="desktop-actions">
@@ -1284,6 +1414,36 @@ function App() {
                             <p>
                               <span>Total</span>
                               <strong>{formatCurrency(orderData.total_amount || orderData.amount)}</strong>
+                            </p>
+                            <p>
+                              <span>SKU</span>
+                              <strong>{orderData.selected_sku || selectedInventorySku || '-'}</strong>
+                            </p>
+                            <p>
+                              <span>Discount</span>
+                              <strong>
+                                {Number(orderData.discount_percent ?? bookedDiscountPercent) > 0
+                                  ? `${Number(orderData.discount_percent ?? bookedDiscountPercent)}% OFF`
+                                  : 'No active discount'}
+                              </strong>
+                            </p>
+                            <p>
+                              <span>Rating</span>
+                              <strong>
+                                {orderData.rating !== undefined || bookedItem
+                                  ? `${Number(orderData.rating ?? bookedItem?.rating ?? 0).toFixed(1)} / 5`
+                                  : '-'}
+                              </strong>
+                            </p>
+                            <p style={{ gridColumn: '1 / -1' }}>
+                              <span>Features</span>
+                              <strong className="stage-feature-line">
+                                {Array.isArray(orderData.features) && orderData.features.length > 0
+                                  ? orderData.features.slice(0, 3).join(' • ')
+                                  : bookedFeaturePreview.length > 0
+                                  ? bookedFeaturePreview.join(' • ')
+                                  : 'Feature data will appear after booking an item.'}
+                              </strong>
                             </p>
                           </div>
                         )}
@@ -1604,6 +1764,7 @@ function App() {
           selectedSku={selectedInventorySku}
           formatCurrency={formatCurrency}
           stockTone={stockTone}
+          onBookItem={handleBookItem}
         />
       </Suspense>
 

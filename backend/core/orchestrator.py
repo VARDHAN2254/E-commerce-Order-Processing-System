@@ -26,20 +26,34 @@ class PipelineOrchestrator:
         self.logger.log_transition(msg)
         print(f"[{msg.timestamp.isoformat()}] [{state.name}] {agent_name}: {json.dumps(payload_data)[:150]}...")
 
-    def run_pipeline(self, order_id: str, seed: int = 42, run_id: str = None):
+    def run_pipeline(self, order_id: str, seed: int = 42, run_id: str = None, booked_item: dict | None = None):
         if run_id is None:
             run_id = str(uuid.uuid4())
         print(f"\n--- Starting Order Run {run_id} for Order {order_id} (Seed: {seed}) ---")
         
-        self._log_state(run_id, "System", AgentState.IDLE, order_id, {"status": "initialized", "seed": seed})
+        self._log_state(
+            run_id,
+            "System",
+            AgentState.IDLE,
+            order_id,
+            {"status": "initialized", "seed": seed, "booking_mode": booked_item is not None},
+        )
         
         try:
             start_time = time.time()
 
             # 1. Order Placed
             self._log_state(run_id, "OrderAgent", AgentState.ORDER_PLACED, order_id, {})
-            order = self.order_agent.process(order_id, seed)
-            self._log_state(run_id, "OrderAgent", AgentState.ORDER_PLACED, order_id, {"customer": order.customer_name, "item": order.item_name, "amount": order.total_amount})
+            order = self.order_agent.process(order_id, seed, booked_item=booked_item)
+            order_payload = {
+                "customer": order.customer_name,
+                "item": order.item_name,
+                "amount": order.total_amount,
+                "selected_sku": order.selected_sku,
+            }
+            if order.booked_item_meta:
+                order_payload.update(order.booked_item_meta)
+            self._log_state(run_id, "OrderAgent", AgentState.ORDER_PLACED, order_id, order_payload)
             
             # 2. Verified (Inventory)
             self._log_state(run_id, "InventoryAgent", AgentState.VERIFIED, order_id, {})

@@ -37,6 +37,7 @@ interface InventorySheetProps {
   selectedSku: string;
   formatCurrency: (value: unknown) => string;
   stockTone: (status: string) => string;
+  onBookItem: (item: InventoryItem) => void;
 }
 
 const GRID_GAP = 14;
@@ -55,11 +56,16 @@ function InventorySheet({
   selectedSku,
   formatCurrency,
   stockTone,
+  onBookItem,
 }: InventorySheetProps) {
   const virtualGridRef = useRef<HTMLDivElement | null>(null);
+  const bookingTimerRef = useRef<number | null>(null);
+  const bookingFxTimerRef = useRef<number | null>(null);
   const [viewportWidth, setViewportWidth] = useState(980);
   const [viewportHeight, setViewportHeight] = useState(540);
   const [scrollTop, setScrollTop] = useState(0);
+  const [bookingFxSku, setBookingFxSku] = useState('');
+  const [pendingBookSku, setPendingBookSku] = useState('');
 
   useEffect(() => {
     if (!open || !virtualGridRef.current) {
@@ -86,6 +92,18 @@ function InventorySheet({
     setViewportHeight(Math.max(220, container.clientHeight));
     return () => observer.disconnect();
   }, [open]);
+
+  useEffect(
+    () => () => {
+      if (bookingTimerRef.current !== null) {
+        window.clearTimeout(bookingTimerRef.current);
+      }
+      if (bookingFxTimerRef.current !== null) {
+        window.clearTimeout(bookingFxTimerRef.current);
+      }
+    },
+    [],
+  );
 
   const columnCount = viewportWidth >= 980 ? 3 : viewportWidth >= 720 ? 2 : 1;
   const columnWidth = Math.max(
@@ -176,11 +194,13 @@ function InventorySheet({
               const discountPercent = Number(item.discount_percent ?? 0);
               const deliveryCharge = Number(item.delivery_charge ?? 0);
               const deliveryDays = Number(item.estimated_delivery_days ?? 0);
+              const isBookingNow = bookingFxSku === item.sku;
+              const isPending = pendingBookSku === item.sku;
 
               return (
                 <article
                   key={item.sku}
-                  className={`inventory-card inventory-card-virtual ${isSelected ? 'is-selected' : ''}`}
+                  className={`inventory-card inventory-card-virtual ${isSelected ? 'is-selected' : ''} ${isBookingNow ? 'is-booking' : ''}`}
                   style={{
                     top: `${row * rowHeight}px`,
                     left: `${col * (columnWidth + GRID_GAP)}px`,
@@ -253,6 +273,29 @@ function InventorySheet({
                     <p className="inventory-delivery-line">
                       Delivery: {formatCurrency(deliveryCharge)} | ETA: {deliveryDays} day{deliveryDays === 1 ? '' : 's'}
                     </p>
+                    <button
+                      type="button"
+                      className={`inventory-book-btn ${isSelected ? 'is-selected' : ''}`}
+                      onClick={() => {
+                        setPendingBookSku(item.sku);
+                        setBookingFxSku(item.sku);
+                        if (bookingTimerRef.current !== null) {
+                          window.clearTimeout(bookingTimerRef.current);
+                        }
+                        if (bookingFxTimerRef.current !== null) {
+                          window.clearTimeout(bookingFxTimerRef.current);
+                        }
+                        bookingTimerRef.current = window.setTimeout(() => {
+                          onBookItem(item);
+                          setPendingBookSku('');
+                        }, 240);
+                        bookingFxTimerRef.current = window.setTimeout(() => {
+                          setBookingFxSku('');
+                        }, 880);
+                      }}
+                    >
+                      {isPending ? 'Booking...' : isSelected ? 'Booked Item' : 'Book This Item'}
+                    </button>
                   </div>
                 </article>
               );

@@ -2,7 +2,7 @@ from fastapi import FastAPI, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from backend.core.orchestrator import PipelineOrchestrator
 
@@ -21,13 +21,14 @@ orchestrator = PipelineOrchestrator()
 class RunRequest(BaseModel):
     order_id: str
     seed: int = 42
+    booked_item: Optional[Dict[str, Any]] = None
 
 import uuid
 
 @app.post("/api/run")
 async def trigger_run(request: RunRequest, background_tasks: BackgroundTasks):
     run_id = str(uuid.uuid4())
-    background_tasks.add_task(orchestrator.run_pipeline, request.order_id, request.seed, run_id)
+    background_tasks.add_task(orchestrator.run_pipeline, request.order_id, request.seed, run_id, request.booked_item)
     return {"status": "started", "order_id": request.order_id, "seed": request.seed, "run_id": run_id}
 
 @app.get("/api/logs/{run_id}")

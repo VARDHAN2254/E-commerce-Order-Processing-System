@@ -79,6 +79,24 @@ body {
   overflow-x: clip;
 }
 
+.booking-warp {
+  position: fixed;
+  inset: -26%;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0;
+  background:
+    radial-gradient(circle at 24% 42%, rgba(255, 173, 98, 0.33), transparent 42%),
+    radial-gradient(circle at 78% 58%, rgba(255, 96, 31, 0.26), transparent 46%),
+    radial-gradient(circle at 50% 50%, rgba(255, 234, 198, 0.18), transparent 55%);
+  filter: blur(22px) saturate(1.08);
+  transform: scale(0.92);
+}
+
+.booking-warp.is-active {
+  animation: booking-warp-burst 1.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 .ambient {
   position: fixed;
   pointer-events: none;
@@ -406,6 +424,115 @@ body {
 .controls-grid {
   display: grid;
   gap: var(--space-4);
+}
+
+.booked-item-panel {
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.22);
+  padding: 0.85rem 0.92rem;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 280ms ease, box-shadow 280ms ease, transform 280ms var(--ease-out);
+}
+
+.booked-item-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: linear-gradient(112deg, rgba(255, 186, 121, 0.24), transparent 36%, rgba(255, 120, 44, 0.18));
+  transition: opacity 320ms ease;
+  pointer-events: none;
+}
+
+.booked-item-panel.is-active {
+  border-color: rgba(255, 176, 111, 0.4);
+  box-shadow: 0 14px 28px rgba(255, 120, 44, 0.18), inset 0 0 0 1px rgba(255, 186, 127, 0.18);
+}
+
+.booked-item-panel.is-active::before {
+  opacity: 1;
+}
+
+.booked-item-panel.is-booking {
+  animation: booking-card-pulse 920ms var(--ease-flow) both;
+}
+
+.booked-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.72rem;
+}
+
+.booked-item-kicker {
+  margin: 0;
+  font-size: 0.69rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #ffc892;
+  font-weight: 800;
+}
+
+.booked-item-grid {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 0.95rem;
+}
+
+.booked-item-main h4 {
+  margin: 0;
+  font-size: 0.96rem;
+}
+
+.booked-item-meta {
+  margin: 0.2rem 0 0.5rem;
+  color: var(--text-dim);
+  font-size: 0.74rem;
+}
+
+.booked-item-features {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.booked-item-features span {
+  font-size: 0.66rem;
+  padding: 0.14rem 0.42rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  color: #f5d7ba;
+}
+
+.booked-item-stats {
+  display: grid;
+  gap: 0.36rem;
+}
+
+.booked-item-stats p {
+  margin: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  font-size: 0.74rem;
+}
+
+.booked-item-stats p span {
+  color: var(--text-dim);
+}
+
+.booked-item-stats p strong {
+  color: var(--text-main);
+  text-align: right;
+}
+
+.booked-item-empty {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-soft);
 }
 
 .field {
@@ -894,6 +1021,12 @@ body {
   text-align: right;
   font-weight: 700;
   color: var(--text-main);
+}
+
+.stage-feature-line {
+  text-align: left !important;
+  line-height: 1.5;
+  color: #f6d7b9 !important;
 }
 
 .decision {
@@ -1426,6 +1559,12 @@ body {
   box-shadow: 0 0 0 1px rgba(255, 175, 102, 0.3), 0 14px 35px rgba(255, 117, 34, 0.24);
 }
 
+.inventory-card.is-booking {
+  border-color: rgba(255, 218, 175, 0.74);
+  box-shadow: 0 0 0 1px rgba(255, 186, 129, 0.44), 0 18px 42px rgba(255, 118, 28, 0.34);
+  animation: inventory-booking-flare 880ms var(--ease-flow) both;
+}
+
 .inventory-image-wrap {
   position: relative;
   aspect-ratio: 16 / 9;
@@ -1565,6 +1704,33 @@ body {
   margin: 0.38rem 0 0;
   color: var(--text-soft);
   font-size: 0.71rem;
+}
+
+.inventory-book-btn {
+  margin-top: 0.62rem;
+  width: 100%;
+  min-height: 2.05rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 185, 125, 0.38);
+  background: linear-gradient(130deg, rgba(255, 175, 97, 0.28), rgba(255, 108, 23, 0.28));
+  color: #ffe0c2;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: transform 220ms var(--ease-out), border-color 220ms ease, box-shadow 220ms ease, background 220ms ease;
+}
+
+.inventory-book-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 212, 167, 0.58);
+  box-shadow: 0 10px 22px rgba(255, 120, 28, 0.22);
+}
+
+.inventory-book-btn.is-selected {
+  border-color: rgba(255, 214, 171, 0.7);
+  background: linear-gradient(130deg, rgba(255, 191, 134, 0.4), rgba(255, 133, 56, 0.36));
 }
 
 .inventory-more-row {
@@ -1754,6 +1920,10 @@ body {
   .controls-panel,
   .section-panel {
     padding: 0.82rem;
+  }
+
+  .booked-item-grid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -2080,6 +2250,54 @@ body {
   100% {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes inventory-booking-flare {
+  0% {
+    transform: translateY(0) scale(1);
+    filter: saturate(1);
+  }
+  35% {
+    transform: translateY(-4px) scale(1.018);
+    filter: saturate(1.2);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    filter: saturate(1);
+  }
+}
+
+@keyframes booking-card-pulse {
+  0% {
+    transform: scale(0.99);
+    box-shadow: 0 8px 18px rgba(255, 120, 44, 0.1);
+  }
+  46% {
+    transform: scale(1.01);
+    box-shadow: 0 20px 42px rgba(255, 120, 44, 0.24);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 14px 28px rgba(255, 120, 44, 0.18);
+  }
+}
+
+@keyframes booking-warp-burst {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+    filter: blur(28px) saturate(1.04);
+  }
+  42% {
+    opacity: 0.95;
+    transform: scale(1.03);
+    filter: blur(16px) saturate(1.28);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.1);
+    filter: blur(34px) saturate(1);
   }
 }
 

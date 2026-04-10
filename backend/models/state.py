@@ -35,4 +35,6 @@ class OrderData(BaseModel):
     metrics: Dict[str, float] = Field(default_factory=dict)
     inventory_catalog: List[Dict[str, Any]] = Field(default_factory=list)
     selected_sku: str = ""
+    requested_sku: str = ""
+    booked_item_meta: Dict[str, Any] = Field(default_factory=dict)
     inventory_context: Dict[str, Any] = Field(default_factory=dict)

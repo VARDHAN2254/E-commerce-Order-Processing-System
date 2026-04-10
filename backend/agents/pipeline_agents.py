@@ -225,8 +225,32 @@ def build_inventory_catalog(seed: int, reference_date: datetime) -> Tuple[List[D
 
 
 class OrderAgent:
-    def process(self, order_id: str, seed: int) -> OrderData:
+    def process(self, order_id: str, seed: int, booked_item: Dict[str, object] | None = None) -> OrderData:
         time.sleep(0.5)
+        if booked_item and str(booked_item.get("name", "")).strip():
+            item_name = str(booked_item.get("name", "Custom Catalog Item"))
+            requested_sku = str(booked_item.get("sku", "")).strip()
+            price_value = float(booked_item.get("discounted_price") or booked_item.get("price") or 0.0)
+            order = OrderData(
+                order_id=order_id,
+                customer_name="Catalog Buyer",
+                item_name=item_name,
+                quantity=int(booked_item.get("quantity", 1) or 1),
+                total_amount=price_value,
+                selected_sku=requested_sku,
+                requested_sku=requested_sku,
+            )
+            order.booked_item_meta = {
+                "category": booked_item.get("category"),
+                "price": booked_item.get("price"),
+                "discounted_price": booked_item.get("discounted_price"),
+                "discount_percent": booked_item.get("discount_percent"),
+                "rating": booked_item.get("rating"),
+                "reviews": booked_item.get("reviews"),
+                "features": booked_item.get("features"),
+            }
+            return order
+
         dummy_orders = {
             "1": ("John Doe", "AstraBook Pro 100", 1, 1899.99),
             "2": ("Jane Smith", "Vertex One 100", 2, 1898.00),
@@ -254,7 +278,16 @@ class InventoryAgent:
 
         catalog, context = build_inventory_catalog(seed, datetime.now())
 
-        selected_item = next((item for item in catalog if str(item["name"]).lower() == order.item_name.lower()), None)
+        selected_item = None
+        if order.requested_sku:
+            selected_item = next(
+                (item for item in catalog if str(item.get("sku", "")).lower() == order.requested_sku.lower()),
+                None,
+            )
+
+        if selected_item is None:
+            selected_item = next((item for item in catalog if str(item["name"]).lower() == order.item_name.lower()), None)
+
         if selected_item is None and catalog:
             fallback_index = (order_number * 17) % len(catalog)
             selected_item = catalog[fallback_index]
@@ -262,6 +295,8 @@ class InventoryAgent:
         order.inventory_catalog = catalog
         order.inventory_context = context
         order.selected_sku = str(selected_item["sku"]) if selected_item else ""
+        if selected_item:
+            order.total_amount = float(selected_item.get("discounted_price") or selected_item.get("price") or order.total_amount)
 
         confidence_noise = seeded_random(seed, (order_number * 17) + 5)
         base_confidence = 0.52 + (confidence_noise * 0.46)
