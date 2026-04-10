@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
   Activity,
@@ -13,7 +13,6 @@ import {
   BarChart,
   Square,
   Truck,
-  X,
 } from 'lucide-react';
 
 type AgentState =
@@ -89,6 +88,8 @@ interface HandoffTransition {
 }
 
 const API_BASE = 'http://localhost:8000/api';
+const EvalPanel = lazy(() => import('./lazy/EvalPanel'));
+const InventorySheet = lazy(() => import('./lazy/InventorySheet'));
 
 const STAGES: StageConfig[] = [
   {
@@ -572,7 +573,6 @@ function App() {
   const [view, setView] = useState<ViewMode>('tracking');
   const [inventoryOpen, setInventoryOpen] = useState(false);
   const [inventoryCategory, setInventoryCategory] = useState<string>('All');
-  const [inventoryVisibleCount, setInventoryVisibleCount] = useState(72);
   const [handoff, setHandoff] = useState<HandoffTransition | null>(null);
   const [isSystemEntering, setIsSystemEntering] = useState(false);
 
@@ -911,11 +911,6 @@ function App() {
     }
     return inventoryCatalog.filter((item) => item.category === inventoryCategory);
   }, [inventoryCatalog, inventoryCategory]);
-
-  const visibleInventoryCatalog = useMemo(
-    () => filteredInventoryCatalog.slice(0, inventoryVisibleCount),
-    [filteredInventoryCatalog, inventoryVisibleCount],
-  );
   const protocolLogs = useMemo(() => logs.slice(-80), [logs]);
 
   const visitedStageIndices = STAGES.reduce<number[]>((acc, stage, index) => {
@@ -987,10 +982,6 @@ function App() {
       setInventoryCategory(inventoryCategories[0][0]);
     }
   }, [inventoryCategories, inventoryCategory]);
-
-  useEffect(() => {
-    setInventoryVisibleCount(72);
-  }, [inventoryCategory, inventoryOpen]);
 
   useEffect(() => {
     if (view !== 'system' || !logContainerRef.current) {
@@ -1588,191 +1579,33 @@ function App() {
             </div>
           </section>
         ) : view === 'eval' ? (
-          <section className="surface section-panel" style={{ padding: '2rem' }}>
-            <div className="section-head">
-              <div>
-                <p className="section-kicker">Benchmark Results</p>
-                <h2>10-Scenario Emulation Output</h2>
-              </div>
-            </div>
-            <p style={{ color: 'var(--text-soft)', fontSize: '0.86rem', marginTop: '0.5rem', lineHeight: 1.6 }}>
-               Synthetic benchmark testing confirms the Multi-Agent architecture consistently outperforms single-agent monolithic routing. 
-               Evaluated with pristine logic constraints and a frozen internal seed <b>19842</b> for completely strict reproducibility targets. 
-               <br/><br/>
-               <b>Evaluation Key Takeaways:</b><br/>
-               • <b>98.4%</b> Fraud/Anomaly Detection Rate (+21% vs Baseline Baseline)<br/>
-               • <b>4.12s</b> average synchronous execution sequence (-40% latency drop)<br/>
-               • <b>96%</b> graceful recovery rate over stock/network anomalies.
-            </p>
-
-            <div style={{ marginTop: '2rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(80px,1fr) 2fr 1fr 1fr 1fr', gap: '1rem', padding: '0.5rem', borderBottom: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-dim)', fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 800 }}>
-                <span>Run ID</span>
-                <span>Target Scenario</span>
-                <span>Execution Time</span>
-                <span>Risk / Conf</span>
-                <span>Outcome Node</span>
-              </div>
-              {[
-                { run: 'BMRK-01', target: 'AstraBook Pro 100 - Standard Flow', time: '5501ms', risk: '0.12', out: 'DELIVERED', c: 'success' },
-                { run: 'BMRK-02', target: 'Vertex One 100 - Fraud Trigger', time: '3020ms', risk: '0.85', out: 'BLOCKED (PA)', c: 'failed' },
-                { run: 'BMRK-03', target: 'Stride Runner 100 - Empty Stock', time: '4110ms', risk: '0.04', out: 'RESTOCK (IA)', c: 'warn' },
-                { run: 'BMRK-04', target: 'PulseFit Pro 100 - Network Jam', time: '6700ms', risk: '0.11', out: 'REROUTED (DA)', c: 'success' },
-                { run: 'BMRK-05', target: 'HomeNova Smart 100 - Location Flag', time: '3800ms', risk: '0.23', out: 'DELIVERED', c: 'success' },
-                { run: 'BMRK-06', target: 'UrbanCarry Classic - High Tier', time: '2100ms', risk: '0.01', out: 'DELIVERED', c: 'success' },
-                { run: 'BMRK-07', target: 'Null Payload Data Injection', time: '1100ms', risk: 'N/A', out: 'BLOCKED (OA)', c: 'failed' },
-                { run: 'BMRK-08', target: 'Mass Stock Event (Simulated)', time: '7400ms', risk: '0.08', out: 'QUEUED (IA)', c: 'warn' },
-                { run: 'BMRK-09', target: 'NovaBook Air 101 - VIP Priority', time: '1500ms', risk: '0.02', out: 'DELIVERED', c: 'success' },
-                { run: 'BMRK-10', target: 'ZenWear Sport 102 - Baseline', time: '3400ms', risk: '0.19', out: 'DELIVERED', c: 'success' },
-              ].map(r => (
-                <div key={r.run} style={{ display: 'grid', gridTemplateColumns: 'minmax(80px,1fr) 2fr 1fr 1fr 1fr', gap: '1rem', padding: '0.6rem 0.5rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', alignItems: 'center', fontSize: '0.82rem' }}>
-                  <span style={{ fontFamily: 'monospace', color: '#ffb074', fontWeight: 700 }}>{r.run}</span>
-                  <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>{r.target}</span>
-                  <span style={{ color: 'var(--text-soft)' }}>{r.time}</span>
-                  <span style={{ color: 'var(--text-dim)' }}>{r.risk}</span>
-                  <span className={`tone-${r.c}`} style={{ fontWeight: '800', fontSize: '0.75rem', letterSpacing: '0.05em' }}>{r.out}</span>
-                </div>
-              ))}
-            </div>
-
-             <div style={{ marginTop: '2rem', padding: '1.2rem', background: 'rgba(255, 170, 100, 0.05)', border: '1px solid rgba(255, 170, 100, 0.2)', borderRadius: '12px' }}>
-               <h4 style={{ margin: '0 0 0.5rem', color: '#ffd9b2' }}>Agent Interaction Reproducibility Guide</h4>
-               <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-soft)', lineHeight: 1.5 }}>
-                 To replay and reproduce these exact step-by-step logic nodes generated by our Peer-to-Peer AI architecture, lock your <b>PRNG Base Seed</b> to the corresponding evaluation hash (e.g. <b>19842</b> for Run 1) and press <b>Process Order</b> underneath any of the featured item nodes. The timeline feed in the Live Tracking dashboard will recreate the scenario flawlessly.
-               </p>
-             </div>
-          </section>
+          <Suspense
+            fallback={
+              <section className="surface section-panel" style={{ padding: '2rem' }}>
+                <p className="placeholder">Loading benchmark view...</p>
+              </section>
+            }
+          >
+            <EvalPanel />
+          </Suspense>
         ) : null}
       </main>
 
-      <div
-        className={`inventory-overlay ${inventoryOpen ? 'is-open' : ''}`}
-        onClick={() => setInventoryOpen(false)}
-        aria-hidden={!inventoryOpen}
-      >
-        <section
-          className={`inventory-sheet ${inventoryOpen ? 'is-open' : ''}`}
-          onClick={(event) => event.stopPropagation()}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Inventory Catalog"
-        >
-          <span className="inventory-handle" aria-hidden="true" />
-          <div className="inventory-sheet-head">
-            <div>
-              <p className="inventory-kicker">Managed By {getAgentProfile('InventoryAgent').label}</p>
-              <h3>Live Inventory Catalog</h3>
-            </div>
-            <button
-              type="button"
-              className="button button-ghost inventory-close-btn"
-              onClick={() => setInventoryOpen(false)}
-              aria-label="Close inventory"
-            >
-              <X size={16} />
-            </button>
-          </div>
-
-          <p className="inventory-sheet-subtitle">
-            Browse categorized inventory with dynamic discounts and delivery charges that adapt to current day and season.
-          </p>
-
-          <div className="inventory-toolbar">
-            <div className="inventory-context-strip">
-              <span className="inventory-context-pill">{inventoryContext.generated_items} Items</span>
-              <span className="inventory-context-pill">{inventoryContext.season || 'Season'} Season</span>
-              <span className="inventory-context-pill">{inventoryContext.day_name || 'Day'} Pricing</span>
-              <span className="inventory-context-pill">{inventoryContext.day_type || 'Cycle'} Logistics</span>
-            </div>
-            <div className="inventory-category-tabs">
-              {inventoryCategories.map(([categoryName, count]) => (
-                <button
-                  key={categoryName}
-                  type="button"
-                  className={`inventory-category-tab ${inventoryCategory === categoryName ? 'is-active' : ''}`}
-                  onClick={() => setInventoryCategory(categoryName)}
-                >
-                  {categoryName} <span>{count}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="inventory-grid">
-            {visibleInventoryCatalog.map((item, index) => {
-              const isSelected = selectedInventorySku !== '' && item.sku === selectedInventorySku;
-              const units = Number(item.stock_units ?? 0);
-              const stockStatus = String(item.stock_status ?? 'Unknown');
-              const stockPercent = Math.max(8, Math.min(100, Math.round((units / 30) * 100)));
-              const basePrice = Number(item.price ?? 0);
-              const discountPrice = Number(item.discounted_price ?? basePrice);
-              const discountPercent = Number(item.discount_percent ?? 0);
-              const deliveryCharge = Number(item.delivery_charge ?? 0);
-              const deliveryDays = Number(item.estimated_delivery_days ?? 0);
-
-              return (
-                <article
-                  key={item.sku}
-                  className={`inventory-card ${isSelected ? 'is-selected' : ''}`}
-                  style={{ animationDelay: `${(index % 12) * 45}ms` }}
-                >
-                  <div className="inventory-image-wrap">
-                    <img src={item.image} alt={item.name} loading="lazy" />
-                    {isSelected && <span className="inventory-current-chip">Current Order</span>}
-                    <span className="inventory-discount-chip">{discountPercent}% OFF</span>
-                  </div>
-
-                  <div className="inventory-card-body">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <p className="inventory-category">{item.category}</p>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', color: '#ffb074', fontSize: '0.75rem', fontWeight: 700 }}>
-                         ★ {item.rating?.toFixed(1) || '4.5'} <span style={{ color: 'var(--text-dim)', fontWeight: 400 }}>({item.reviews || 0})</span>
-                      </div>
-                    </div>
-                    <h4>{item.name}</h4>
-                    <div style={{ marginTop: '0.2rem', marginBottom: '0.6rem', display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-                      {(item.features || []).map((feat, i) => (
-                         <span key={i} style={{ fontSize: '0.65rem', padding: '0.1rem 0.35rem', background: 'rgba(255,255,255,0.06)', borderRadius: '4px', color: 'var(--text-soft)' }}>
-                           {feat}
-                         </span>
-                      ))}
-                    </div>
-                    <div className="inventory-meta-row">
-                      <div className="inventory-price-stack">
-                        <strong>{formatCurrency(discountPrice)}</strong>
-                        <span className="inventory-mrp">MRP {formatCurrency(basePrice)}</span>
-                      </div>
-                      <span className={`inventory-stock-badge ${stockTone(stockStatus)}`}>{stockStatus}</span>
-                    </div>
-                    <div className="inventory-stock-bar">
-                      <span style={{ width: `${stockPercent}%` }} />
-                    </div>
-                    <p className="inventory-units">{units} units available</p>
-                    <p className="inventory-delivery-line">
-                      Delivery: {formatCurrency(deliveryCharge)} | ETA: {deliveryDays} day{deliveryDays === 1 ? '' : 's'}
-                    </p>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-
-          {filteredInventoryCatalog.length > visibleInventoryCatalog.length && (
-            <div className="inventory-more-row">
-              <p className="inventory-more-meta">
-                Showing {visibleInventoryCatalog.length} of {filteredInventoryCatalog.length} items
-              </p>
-              <button
-                type="button"
-                className="button button-ghost inventory-load-more-btn"
-                onClick={() => setInventoryVisibleCount((prev) => prev + 72)}
-              >
-                Load More
-              </button>
-            </div>
-          )}
-        </section>
-      </div>
+      <Suspense fallback={null}>
+        <InventorySheet
+          open={inventoryOpen}
+          onClose={() => setInventoryOpen(false)}
+          managerLabel={getAgentProfile('InventoryAgent').label}
+          context={inventoryContext}
+          categories={inventoryCategories}
+          activeCategory={inventoryCategory}
+          onChangeCategory={setInventoryCategory}
+          items={filteredInventoryCatalog}
+          selectedSku={selectedInventorySku}
+          formatCurrency={formatCurrency}
+          stockTone={stockTone}
+        />
+      </Suspense>
 
       <div className={`sticky-cta ${isRunning ? 'is-running' : ''}`} role="group" aria-label="Run controls">
         <button type="button" className="button button-primary" onClick={startRun}>

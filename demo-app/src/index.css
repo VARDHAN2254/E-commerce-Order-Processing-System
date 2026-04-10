@@ -1367,6 +1367,19 @@ body {
   grid-template-columns: 1fr;
 }
 
+.inventory-grid-virtual {
+  display: block;
+  position: relative;
+  height: min(56vh, 620px);
+  overflow: auto;
+  padding-right: 0.3rem;
+}
+
+.inventory-virtual-spacer {
+  position: relative;
+  width: 100%;
+}
+
 .inventory-card {
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.11);
@@ -1378,6 +1391,12 @@ body {
   transition: transform 240ms var(--ease-out), border-color 240ms ease, box-shadow 240ms ease;
   content-visibility: auto;
   contain-intrinsic-size: 420px;
+}
+
+.inventory-card-virtual {
+  position: absolute;
+  left: 0;
+  right: 0;
 }
 
 .inventory-overlay.is-open .inventory-card {
@@ -1603,7 +1622,7 @@ body {
     padding: 1.25rem 1.25rem 1.35rem;
   }
 
-  .inventory-grid {
+  .inventory-grid:not(.inventory-grid-virtual) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -1645,7 +1664,7 @@ body {
     max-height: min(80vh, 900px);
   }
 
-  .inventory-grid {
+  .inventory-grid:not(.inventory-grid-virtual) {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
