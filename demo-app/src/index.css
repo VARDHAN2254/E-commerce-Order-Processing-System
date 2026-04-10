@@ -1705,6 +1705,45 @@ body {
   }
 }
 
+@media (min-width: 1800px) and (min-height: 960px) {
+  .app-shell {
+    padding-top: 0.95rem;
+    padding-bottom: 1.2rem;
+  }
+
+  .dashboard {
+    width: min(1840px, calc(100vw - 3rem));
+    gap: 1.1rem;
+  }
+
+  .topbar,
+  .section-panel,
+  .controls-panel {
+    padding: 1.2rem;
+  }
+
+  .tracking-layout {
+    grid-template-columns: 1.55fr 1fr;
+  }
+
+  .system-layout {
+    grid-template-columns: 1fr 1.14fr;
+  }
+
+  .protocol-panel {
+    min-height: 38rem;
+  }
+
+  .log-panel {
+    max-height: calc(100dvh - 15.5rem);
+  }
+
+  .inventory-sheet {
+    width: min(1680px, calc(100vw - 4rem));
+    max-height: min(84vh, 940px);
+  }
+}
+
 @media (max-width: 540px) {
   .dashboard {
     width: calc(100vw - 0.75rem);
