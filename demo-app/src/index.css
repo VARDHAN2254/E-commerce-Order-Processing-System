@@ -53,6 +53,7 @@
 html,
 body,
 #root {
+  width: 100%;
   min-height: 100%;
 }
 
@@ -66,12 +67,16 @@ body {
     radial-gradient(900px 500px at 102% 110%, rgba(255, 98, 0, 0.22), transparent 72%),
     linear-gradient(165deg, var(--bg-0), var(--bg-1));
   background-attachment: fixed;
+  overflow-x: hidden;
 }
 
 .app-shell {
   position: relative;
+  width: 100%;
+  min-height: 100dvh;
   min-height: 100vh;
-  padding: var(--space-4) 0 calc(6rem + env(safe-area-inset-bottom));
+  padding: clamp(0.65rem, 1.3vw, 1rem) 0 calc(6rem + env(safe-area-inset-bottom));
+  overflow-x: clip;
 }
 
 .ambient {
@@ -99,7 +104,8 @@ body {
 .dashboard {
   position: relative;
   z-index: 1;
-  width: min(1240px, calc(100% - 1.5rem));
+  width: min(1440px, calc(100vw - clamp(0.9rem, 3vw, 3.4rem)));
+  max-width: 100%;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -1619,7 +1625,7 @@ body {
 
 @media (min-width: 780px) {
   .dashboard {
-    width: min(1240px, calc(100% - 2rem));
+    width: min(1500px, calc(100vw - clamp(1.4rem, 4vw, 5.5rem)));
   }
 
   .topbar {
@@ -1642,6 +1648,7 @@ body {
 
 @media (min-width: 980px) {
   .app-shell {
+    padding-top: clamp(0.85rem, 1.7vw, 1.3rem);
     padding-bottom: var(--space-6);
   }
 
@@ -1695,6 +1702,19 @@ body {
 
   .detail-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 540px) {
+  .dashboard {
+    width: calc(100vw - 0.75rem);
+    gap: 0.78rem;
+  }
+
+  .topbar,
+  .controls-panel,
+  .section-panel {
+    padding: 0.82rem;
   }
 }
 
