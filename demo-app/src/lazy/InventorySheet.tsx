@@ -39,7 +39,8 @@ interface InventorySheetProps {
   stockTone: (status: string) => string;
 }
 
-const ROW_HEIGHT = 318;
+const GRID_GAP = 14;
+const CARD_BODY_ESTIMATE = 148;
 const OVERSCAN_ROWS = 4;
 
 function InventorySheet({
@@ -56,6 +57,7 @@ function InventorySheet({
   stockTone,
 }: InventorySheetProps) {
   const virtualGridRef = useRef<HTMLDivElement | null>(null);
+  const [viewportWidth, setViewportWidth] = useState(980);
   const [viewportHeight, setViewportHeight] = useState(540);
   const [scrollTop, setScrollTop] = useState(0);
 
@@ -75,17 +77,32 @@ function InventorySheet({
     const observer = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (entry) {
+        setViewportWidth(Math.max(280, Math.floor(entry.contentRect.width)));
         setViewportHeight(Math.max(220, Math.floor(entry.contentRect.height)));
       }
     });
     observer.observe(container);
+    setViewportWidth(Math.max(280, container.clientWidth));
     setViewportHeight(Math.max(220, container.clientHeight));
     return () => observer.disconnect();
   }, [open]);
 
-  const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN_ROWS);
-  const visibleRows = Math.ceil(viewportHeight / ROW_HEIGHT) + OVERSCAN_ROWS * 2;
-  const endIndex = Math.min(items.length, startIndex + visibleRows);
+  const columnCount = viewportWidth >= 980 ? 3 : viewportWidth >= 720 ? 2 : 1;
+  const columnWidth = Math.max(
+    220,
+    Math.floor((viewportWidth - GRID_GAP * (columnCount - 1)) / columnCount),
+  );
+  const cardHeight = Math.max(
+    286,
+    Math.round(columnWidth * (9 / 16) + CARD_BODY_ESTIMATE),
+  );
+  const rowHeight = cardHeight + GRID_GAP;
+  const totalRows = Math.max(1, Math.ceil(items.length / columnCount));
+  const startRow = Math.max(0, Math.floor(scrollTop / rowHeight) - OVERSCAN_ROWS);
+  const visibleRows = Math.ceil(viewportHeight / rowHeight) + OVERSCAN_ROWS * 2;
+  const endRow = Math.min(totalRows, startRow + visibleRows);
+  const startIndex = startRow * columnCount;
+  const endIndex = Math.min(items.length, endRow * columnCount);
 
   const virtualItems = useMemo(
     () => items.slice(startIndex, endIndex),
@@ -142,9 +159,14 @@ function InventorySheet({
           ref={virtualGridRef}
           onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
         >
-          <div className="inventory-virtual-spacer" style={{ height: `${Math.max(items.length * ROW_HEIGHT, 1)}px` }}>
+          <div
+            className="inventory-virtual-spacer"
+            style={{ height: `${Math.max(totalRows * rowHeight - GRID_GAP, 1)}px` }}
+          >
             {virtualItems.map((item, localIndex) => {
               const absoluteIndex = startIndex + localIndex;
+              const row = Math.floor(absoluteIndex / columnCount);
+              const col = absoluteIndex % columnCount;
               const isSelected = selectedSku !== '' && item.sku === selectedSku;
               const units = Number(item.stock_units ?? 0);
               const stockStatus = String(item.stock_status ?? 'Unknown');
@@ -160,7 +182,10 @@ function InventorySheet({
                   key={item.sku}
                   className={`inventory-card inventory-card-virtual ${isSelected ? 'is-selected' : ''}`}
                   style={{
-                    top: `${absoluteIndex * ROW_HEIGHT}px`,
+                    top: `${row * rowHeight}px`,
+                    left: `${col * (columnWidth + GRID_GAP)}px`,
+                    width: `${columnWidth}px`,
+                    height: `${cardHeight}px`,
                     animationDelay: `${(absoluteIndex % 10) * 35}ms`,
                   }}
                 >
@@ -195,6 +220,8 @@ function InventorySheet({
                         display: 'flex',
                         gap: '0.35rem',
                         flexWrap: 'wrap',
+                        maxHeight: '2.2rem',
+                        overflow: 'hidden',
                       }}
                     >
                       {(item.features || []).map((feature) => (
@@ -235,7 +262,7 @@ function InventorySheet({
 
         <div className="inventory-more-row">
           <p className="inventory-more-meta">
-            Showing {virtualItems.length} rendered cards of {items.length} catalog items
+            Showing {items.length} catalog items | Rendering {virtualItems.length} cards in viewport
           </p>
         </div>
       </section>
